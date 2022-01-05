@@ -1,6 +1,7 @@
 //! VirtIO guest drivers.
 
 #![no_std]
+#![feature(fn_traits)]
 #![deny(unused_must_use, missing_docs)]
 #![allow(clippy::identity_op)]
 #![allow(dead_code)]
