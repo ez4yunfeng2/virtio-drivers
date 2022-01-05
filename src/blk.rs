@@ -91,6 +91,49 @@ impl VirtIOBlk<'_> {
             _ => Err(Error::IoError),
         }
     }
+
+        ///read block irq
+        pub fn read_block_irq(&mut self, block_id: usize, buf: &mut [u8],method:&dyn Fn() -> ()) -> Result {
+            assert_eq!(buf.len(), BLK_SIZE);
+            let req = BlkReq {
+                type_: ReqType::In,
+                reserved: 0,
+                sector: block_id as u64,
+            };
+            let mut resp = BlkResp::default();
+            self.queue.add(&[req.as_buf()], &[buf, resp.as_buf_mut()])?;
+            self.header.notify(0);
+            method.call(());
+            while !self.queue.can_pop() {
+                spin_loop();
+            }
+            self.queue.pop_used()?;
+            match resp.status {
+                RespStatus::Ok => Ok(()),
+                _ => Err(Error::IoError),
+            }
+        }
+        ///write block irq
+        pub fn write_block_irq(&mut self, block_id: usize, buf: &[u8],method:&dyn Fn() -> ()) -> Result {
+            assert_eq!(buf.len(), BLK_SIZE);
+            let req = BlkReq {
+                type_: ReqType::Out,
+                reserved: 0,
+                sector: block_id as u64,
+            };
+            let mut resp = BlkResp::default();
+            self.queue.add(&[req.as_buf(), buf], &[resp.as_buf_mut()])?;
+            self.header.notify(0);
+            method.call(());
+            while !self.queue.can_pop() {
+                spin_loop();
+            }
+            self.queue.pop_used()?;
+            match resp.status {
+                RespStatus::Ok => Ok(()),
+                _ => Err(Error::IoError),
+            }
+        }
 }
 
 #[repr(C)]
